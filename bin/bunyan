@@ -44,6 +44,8 @@ var OM_INSPECT = 3;
 var OM_SIMPLE = 4;
 var OM_SHORT = 5;
 var OM_BUNYAN = 6;
+var OM_SCALITY = 7;
+
 var OM_FROM_NAME = {
     'long': OM_LONG,
     'paul': OM_LONG,  /* backward compat */
@@ -51,7 +53,8 @@ var OM_FROM_NAME = {
     'inspect': OM_INSPECT,
     'simple': OM_SIMPLE,
     'short': OM_SHORT,
-    'bunyan': OM_BUNYAN
+    'bunyan': OM_BUNYAN,
+    'scality': OM_SCALITY
 };
 
 
@@ -737,6 +740,7 @@ function emitRecord(rec, line, opts, stylize) {
         /* jsl:fall-thru */
 
     case OM_LONG:
+    case OM_SCALITY:
         //    [time] LEVEL: name[/comp]/pid on hostname (src): msg* (extras...)
         //        msg*
         //        --
@@ -753,7 +757,7 @@ function emitRecord(rec, line, opts, stylize) {
         delete rec.v;
 
         var time = rec.time;
-        switch (opts.timeFormat) {
+        switch (opts.time) {
         case TIME_UTC:
             break;
         case TIME_LOCAL:
@@ -765,7 +769,7 @@ function emitRecord(rec, line, opts, stylize) {
                 (new Date(time)).getTime() - timezoneOffsetMs).toISOString()
             break;
         }
-        if (short && rec.time[10] === 'T') {
+        if (opts.outputMode == OM_SCALITY ||  (short && rec.time[10] === 'T')) {
             // Presuming `time` is ISO8601 formatted, i.e. safe to drop date.
             time = stylize(time.substr(11), 'XXX');
         } else {
@@ -1018,24 +1022,36 @@ function emitRecord(rec, line, opts, stylize) {
             (extras.length ? ' (' + extras.join(', ') + ')' : ''), 'XXX');
         details = stylize(
             (details.length ? details.join('\n    --\n') + '\n' : ''), 'XXX');
-        if (!short)
-            emit(format('%s %s: %s on %s%s:%s%s\n%s',
-                time,
-                level,
-                nameStr,
-                hostname || '<no-hostname>',
-                src,
-                onelineMsg,
-                extras,
-                details));
-        else
-            emit(format('%s %s %s:%s%s\n%s',
-                time,
-                level,
-                nameStr,
-                onelineMsg,
-                extras,
-                details));
+            
+        if (opts.outputMode == OM_SCALITY) {
+            emit(format('%s level="%s" name="%s" hostname="%s" src="%s" msg="%s"\n',
+            time,
+                    level,
+                    nameStr,
+                    hostname || '<no-hostname>',
+                    src,
+                    onelineMsg));
+        }
+        else {
+            if (!short)
+                emit(format('%s %s: %s on %s%s:%s%s\n%s',
+                    time,
+                    level,
+                    nameStr,
+                    hostname || '<no-hostname>',
+                    src,
+                    onelineMsg,
+                    extras,
+                    details));
+            else
+                emit(format('%s %s %s:%s%s\n%s',
+                    time,
+                    level,
+                    nameStr,
+                    onelineMsg,
+                    extras,
+                    details));
+        }
         break;
 
     case OM_INSPECT:
@@ -1060,6 +1076,7 @@ function emitRecord(rec, line, opts, stylize) {
             upperNameFromLevel[rec.level] || 'LVL' + rec.level,
             rec.msg));
         break;
+        
     default:
         throw new Error('unknown output mode: '+opts.outputMode);
     }
