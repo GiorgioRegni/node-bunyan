@@ -1024,13 +1024,16 @@ function emitRecord(rec, line, opts, stylize) {
             (details.length ? details.join('\n    --\n') + '\n' : ''), 'XXX');
             
         if (opts.outputMode == OM_SCALITY) {
-            emit(format('%s level="%s" name="%s" hostname="%s" src="%s" msg="%s"\n',
+            emit(format('%s level="%s" name="%s" hostname="%s"%s msg="%s"%s%s\n',
             time,
                     level,
                     nameStr,
                     hostname || '<no-hostname>',
-                    src,
-                    onelineMsg));
+                    src.length?format(' src="%s"', src):"",
+                    onelineMsg,
+                    extras.length?format(' extra="%s"', extras):"",
+                    details.length?format(' details="%s"', details):""
+                    ));
         }
         else {
             if (!short)
